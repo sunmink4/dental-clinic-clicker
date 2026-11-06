@@ -12,7 +12,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Dc.Android</RootNamespace>
-    <ApplicationId>com.kyeongrok.dentalclinicclicker</ApplicationId>
+    <ApplicationId>com.sunmink4.dentalclinicclicker</ApplicationId>
     <ApplicationTitle>치과 키우기</ApplicationTitle>
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>

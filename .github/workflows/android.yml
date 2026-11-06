@@ -61,7 +61,7 @@ jobs:
           $sign = @()
           if ($env:KEYSTORE_B64) {
             $ks = Join-Path $env:RUNNER_TEMP "dental-release.keystore"
-            [IO.File]::WriteAllBytes($ks, [Convert]::FromBase64String($env:KEYSTORE_B64))
+            [IO.File]::WriteAllBytes($ks, [Convert]::FromBase64String(($env:KEYSTORE_B64 -replace '\s', '')))
             $sign = @("-p:AndroidKeyStore=true", "-p:AndroidSigningKeyStore=$ks", "-p:AndroidSigningKeyAlias=dental",
                       "-p:AndroidSigningKeyPass=$env:KEYSTORE_PASS", "-p:AndroidSigningStorePass=$env:KEYSTORE_PASS")
             Write-Host "고정 키로 서명합니다"

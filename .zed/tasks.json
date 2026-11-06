@@ -1,0 +1,29 @@
+[
+  {
+    "label": "게임 실행 (PC)",
+    "command": "dotnet",
+    "args": ["run", "--project", "src/Dc.Desktop"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "빌드 (PC)",
+    "command": "dotnet",
+    "args": ["build", "src/Dc.Desktop"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "테스트",
+    "command": "dotnet",
+    "args": ["test", "tests/Dc.Tests"],
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]

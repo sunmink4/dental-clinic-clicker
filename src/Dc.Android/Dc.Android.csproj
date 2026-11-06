@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    안드로이드판. 게임은 Dc.Core · Dc.Ui 를 그대로 쓰고, 여기에는 창 · 터치 · 소리 · 저장 경로만 있다.
+    빌드: dotnet workload install android → dotnet publish -c Release -f net10.0-android
+    솔루션에는 넣지 않는다 — 워크로드가 없는 PC 에서도 dotnet test 가 돌아가게. GitHub Actions 가 빌드한다.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Dc.Android</RootNamespace>
+    <ApplicationId>com.kyeongrok.dentalclinicclicker</ApplicationId>
+    <ApplicationTitle>치과 키우기</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dc.Ui\Dc.Ui.csproj" />
+    <PackageReference Include="SkiaSharp.Views" Version="3.119.0" />
+    <AndroidAsset Include="..\..\assets\images\*.png" Link="Assets\images\%(Filename)%(Extension)" />
+    <AndroidAsset Include="..\..\assets\audio\*.wav" Link="Assets\audio\%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,106 @@
+name: Android APK
+
+# main 에 push 하면 APK 를 Actions 산출물로만 올린다.
+# v 로 시작하는 태그(예: v0.1.0)를 push 하면 같은 APK 를 그 판의 GitHub 릴리즈에도 붙인다.
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android workload
+        run: dotnet workload install android
+
+      - name: Test rules
+        run: dotnet test tests/Dc.Tests
+
+      - name: Get version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v\d') { $tag = 'v0.1.0' }
+          $parts = @($tag.Substring(1).Split('.'))
+          while ($parts.Count -lt 3) { $parts += '0' }
+          $version = $parts -join '.'
+          # 안드로이드 판 번호(정수) — 0.4.1 → 401
+          $code = [int]$parts[0] * 10000 + [int]$parts[1] * 100 + [int]$parts[2]
+          if ($code -lt 1) { $code = 1 }
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "code=$code" >> $env:GITHUB_OUTPUT
+
+      # 서명 — 저장소 비밀값 ANDROID_KEYSTORE_B64(키 파일 base64) · ANDROID_KEYSTORE_PASS 가 있으면 늘 같은 키로 서명한다
+      # (그래야 폰에서 지우지 않고 업데이트된다). 없으면 그때그때 만든 디버그 키 — 판마다 키가 달라 업데이트가 안 된다.
+      - name: Publish APK
+        shell: pwsh
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+        run: |
+          $v = "${{ steps.version.outputs.version }}"
+          $sign = @()
+          if ($env:KEYSTORE_B64) {
+            $ks = Join-Path $env:RUNNER_TEMP "dental-release.keystore"
+            [IO.File]::WriteAllBytes($ks, [Convert]::FromBase64String($env:KEYSTORE_B64))
+            $sign = @("-p:AndroidKeyStore=true", "-p:AndroidSigningKeyStore=$ks", "-p:AndroidSigningKeyAlias=dental",
+                      "-p:AndroidSigningKeyPass=$env:KEYSTORE_PASS", "-p:AndroidSigningStorePass=$env:KEYSTORE_PASS")
+            Write-Host "고정 키로 서명합니다"
+          } else { Write-Host "비밀값이 없어 디버그 키로 서명합니다 — 폰에서 업데이트하려면 지우고 다시 깔아야 합니다" }
+          dotnet publish src/Dc.Android/Dc.Android.csproj -c Release -f net10.0-android -o apk `
+            -p:ApplicationDisplayVersion=$v -p:ApplicationVersion=${{ steps.version.outputs.code }} @sign
+          if ($LASTEXITCODE -ne 0) { throw "안드로이드 publish 실패" }
+          $signed = Get-ChildItem apk -Filter "*-Signed.apk" | Select-Object -First 1
+          if (-not $signed) { throw "서명된 APK 가 없습니다" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $signed.FullName "dist/DentalClinicClicker-android-v$v.apk"
+          Get-ChildItem dist | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dental-clinic-clicker-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Upload to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "치과 키우기 $tag" --generate-notes
+            if ($LASTEXITCODE -ne 0) { exit 1 }
+          }
+          # 업로드가 GitHub 쪽 500·504 로 가끔 끊긴다 — 몇 번 다시 시도한다.
+          $file = "dist/DentalClinicClicker-android-v${{ steps.version.outputs.version }}.apk"
+          for ($try = 1; $try -le 4; $try++) {
+            gh release upload $tag $file --clobber
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($try -eq 4) { exit 1 }
+            Write-Host "업로드 실패 — $try 번째, 30초 뒤 다시 시도"
+            Start-Sleep -Seconds 30
+          }
+          exit 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
